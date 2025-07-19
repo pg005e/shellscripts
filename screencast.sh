@@ -30,22 +30,13 @@ recordwithoutaudio() {
   -c:v libx264 -preset ultrafast -c:a aac -b:a 128k "$OUTPUT"
 }
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -w | --with-audio)
-      recordwithaudio()
-      exit
-      ;;
-    -wo | --without-audio)
-      recordwithoutaudio()
-      exit
-      ;;
-    *)
-      echo "unknown flag"
-      exit
-      ;;
-  esac
-done
-
-# default is record with audio
-recordwithaudio
+case "$1" in
+  -w | --with-audio)
+    recordwithaudio
+    exit 0
+    ;;
+  -wo | --without-audio | *)
+    recordwithoutaudio
+    exit 0
+    ;;
+esac
