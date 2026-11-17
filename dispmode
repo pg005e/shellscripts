@@ -1,0 +1,76 @@
+#! /bin/sh
+
+set -eu
+
+usage() {
+    echo "usage: $(basename "$0") -m <dark|light>" >&2
+    exit 1
+}
+
+mode=
+while getopts "m:" opt; do
+    case "$opt" in
+        m) mode=$OPTARG ;;
+        *) usage ;;
+    esac
+done
+
+[ -n "$mode" ] || usage
+case "$mode" in
+    dark|light) ;;
+    *) usage ;;
+esac
+
+wezterm_config=$HOME/.wezterm.lua
+kanso_config=$HOME/.config/nvim/lua/plugins/kanso.lua
+
+for file in "$wezterm_config" "$kanso_config"; do
+    if [ ! -f "$file" ]; then
+        echo "error: $file not found" >&2
+        exit 1
+    fi
+done
+
+# Rewrite the file through a temp file so that symlinks stay symlinks.
+edit_file() {
+    file=$1
+    shift
+
+    tmp=$(mktemp)
+    sed "$@" "$file" > "$tmp"
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+}
+
+comment_line() {
+    edit_file "$1" "${2}{/^[[:space:]]*--/!s/^/-- /}"
+}
+
+uncomment_line() {
+    edit_file "$1" "${2}{/^[[:space:]]*--[[:space:]]/s/^[[:space:]]*--[[:space:]]//}"
+}
+
+case "$mode" in
+dark)
+    gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+
+    comment_line "$wezterm_config" 10
+    uncomment_line "$wezterm_config" 9
+    comment_line "$wezterm_config" 13
+    uncomment_line "$wezterm_config" 16
+
+    edit_file "$kanso_config" \
+        '/^[[:space:]]*background[[:space:]]*=/,/^[[:space:]]*}/ s/\bpearl\b/zen/g'
+    ;;
+light)
+    gsettings set org.gnome.desktop.interface color-scheme default
+
+    comment_line "$wezterm_config" 9
+    uncomment_line "$wezterm_config" 10
+    uncomment_line "$wezterm_config" 13
+    comment_line "$wezterm_config" 16
+
+    edit_file "$kanso_config" \
+        '/^[[:space:]]*background[[:space:]]*=/,/^[[:space:]]*}/ s/\bzen\b/pearl/g'
+    ;;
+esac
